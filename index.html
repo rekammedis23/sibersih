@@ -37,10 +37,11 @@
 @media(min-width:769px){.install-banner{bottom:20px;}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f0f4f5; color: #1f2937; -webkit-font-smoothing: antialiased; }
+  html { overflow-x: hidden; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f0f4f5; color: #1f2937; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
   a { color: #0d9488; text-decoration: none; }
 
   /* Top bar */
@@ -53,7 +54,14 @@
   .user-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Sidebar */
-  .sidebar { position: fixed; top: 56px; left: 0; width: 240px; height: calc(100% - 56px); background: #fff; border-right: 1px solid #e2e8f0; overflow-y: auto; z-index: 90; transition: transform .38s cubic-bezier(.22,1,.36,1); padding: 12px 0; }
+  .sidebar { position: fixed; top: 56px; left: 0; width: 240px; height: calc(100% - 56px); background: #fff; border-right: 1px solid #e2e8f0; overflow-y: auto; overflow-x: hidden; z-index: 90; transition: transform .38s cubic-bezier(.22,1,.36,1); padding: 12px 0; scrollbar-width: thin; scrollbar-color: #99f6e4 transparent; -webkit-overflow-scrolling: touch; }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: #99f6e4; border-radius: 3px; }
+  .sidebar::-webkit-scrollbar-thumb:hover { background: #5eead4; }
+  .prog-wrap { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
+  .prog-bar { height: 100%; background: linear-gradient(90deg, #14b8a6, #0d9488); border-radius: 4px; transition: width .8s cubic-bezier(.22,1,.36,1); }
+  .chip-mini { display: inline-block; padding: 2px 8px; margin: 2px 3px 2px 0; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 999px; font-size: 11px; font-weight: 600; }
   .sidebar .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: #334155; cursor: pointer; font-size: 14px; border-left: 3px solid transparent; transition: background .2s, color .2s, transform .2s; }
   .sidebar .nav-item:hover { background: #f0fdfa; transform: translateX(3px); }
   .sidebar .nav-item.active { background: #f0fdfa; color: #0f766e; border-left-color: #0d9488; font-weight: 600; }
@@ -204,7 +212,7 @@
   /* Mobile */
   @media (max-width: 768px) {
     .topbar .menu-btn { display: block; }
-    .sidebar { transform: translateX(-100%); box-shadow: 2px 0 12px rgba(0,0,0,.15); }
+    .sidebar { transform: translateX(-100%); box-shadow: 2px 0 12px rgba(0,0,0,.15); top: 56px; bottom: calc(62px + env(safe-area-inset-bottom)); height: auto; padding-bottom: 16px; }
     .sidebar.open { transform: translateX(0); }
     main { margin-left: 0; padding: 68px 14px 84px; }
     .grid-4 { grid-template-columns: repeat(2, 1fr); }
@@ -305,7 +313,7 @@
       </div>
     </div>
     <div class="grid grid-4" id="statCards" style="margin-bottom:16px"></div>
-    <div class="card"><h3>Kinerja per Shift (periode terpilih)</h3><div class="grid grid-3" id="shiftCards" style="gap:12px"></div></div>
+    <div class="card"><h3>Capaian Ceklis per Shift (periode terpilih)</h3><div class="page-sub" style="margin:0 0 10px">Target: setiap shift menyelesaikan ceklis di <b>semua unit</b>. Unit yang belum diceklis ditandai merah.</div><div class="grid grid-3" id="shiftCards" style="gap:12px"></div></div>
     <div class="card"><h3>Volume Limbah/Sampah per Kategori (periode terpilih)</h3><div class="chart-wrap" style="height:340px"><canvas id="chartLimbah"></canvas></div><div id="limbahEmpty" class="empty" style="display:none">Belum ada pencatatan limbah pada periode ini.</div></div>
     <div class="grid grid-2">
       <div class="card"><h3>Kepatuhan per Unit (periode terpilih)</h3><div class="chart-wrap"><canvas id="chartUnit"></canvas></div></div>
@@ -315,6 +323,7 @@
       <div class="card"><h3>Status Temuan</h3><div class="chart-wrap sm"><canvas id="chartStatus"></canvas></div></div>
       <div class="card"><h3>Temuan Terbaru</h3><div id="temuanTerbaru" class="empty">Memuat…</div></div>
     </div>
+    <div class="card" style="margin-top:16px"><h3>Item Tidak Sesuai (periode terpilih)</h3><div class="page-sub" style="margin:0 0 10px">Daftar item yang dinilai <b>Tidak Sesuai</b> beserta unit, shift, dan petugasnya — dasar tindak lanjut &amp; perbaikan.</div><div id="tidakSesuaiBox" class="empty">Memuat…</div></div>
   </section>
 
   <!-- INPUT CEKLIS -->
@@ -485,7 +494,7 @@
         <div><label>Role *</label><select id="pgRole"><option>Pelaksana</option><option>Managemen</option></select></div>
       </div>
       <label>Unit (untuk Pelaksana, opsional)</label><select id="pgUnit"><option value="">— Semua Unit —</option></select>
-      <button class="btn" onclick="simpanPengguna()">Simpan Pengguna</button>
+      <button class="btn" id="btnSimpanPengguna" onclick="simpanPengguna()">Simpan Pengguna</button> <button class="btn secondary" id="btnBatalPengguna" style="display:none" onclick="batalPengguna()">Batal Edit</button>
     </div>
     <div class="card"><h3>Daftar Pengguna</h3><div class="table-wrap"><table id="tabelPengguna"><thead><tr><th>Email</th><th>Nama</th><th>Role</th><th>Unit</th><th>Status Aktif</th><th>Aksi</th></tr></thead><tbody></tbody></table></div></div>
   </section>
@@ -524,9 +533,10 @@
       <div class="table-wrap"><table id="tabelLimbah"><thead><tr><th>Tanggal</th><th>Unit</th><th>Kategori</th><th>Jumlah</th><th>Keterangan</th><th>Pencatat</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
     </div>
     <div class="card" id="kategoriCard"><h3>Kelola Kategori Limbah</h3>
+      <input type="hidden" id="kId">
       <div class="row"><div><label>Nama Kategori *</label><input type="text" id="kNama"></div>
       <div><label>Satuan Default</label><select id="kSatuan"><option>kg</option><option>liter</option><option>buah</option></select></div>
-      <div style="display:flex;align-items:flex-end"><button class="btn" onclick="simpanKategori()">Simpan Kategori</button></div></div>
+      <div style="display:flex;align-items:flex-end;gap:8px"><button class="btn" id="btnSimpanKategori" onclick="simpanKategori()">Simpan Kategori</button><button class="btn secondary" id="btnBatalKategori" style="display:none" onclick="batalKategori()">Batal</button></div></div>
       <div class="table-wrap" style="margin-top:14px"><table id="tabelKategori"><thead><tr><th>Kategori</th><th>Satuan</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
     </div>
   </section>
@@ -539,7 +549,7 @@
         <div style="width:56px;height:56px;background:linear-gradient(135deg,#14b8a6,#0d9488);color:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0">B3</div>
         <div>
           <h3 style="margin:0">Si B3RSIH</h3>
-          <div style="font-size:13px;color:#64748b;margin-top:2px">Sistem B3 Rumah Sakit Indonesia Hygien · Versi 1.2.0 (PWA + GitHub Pages)</div>
+          <div style="font-size:13px;color:#64748b;margin-top:2px">Sistem B3 Rumah Sakit Indonesia Hygien · Versi 1.3.0</div>
         </div>
         <span class="badge b-selesai" style="margin-left:auto">Stabil</span>
       </div>
@@ -934,12 +944,10 @@ async function init() {
   }
   renderMenu();
   try {
-    S.units = await gs('getUnits');
-    S.tpl = await gs('getTemplate');
+    var M = await gs('getMasterData');
+    S.units = M.units; S.tpl = M.tpl; S.shifts = M.shifts; S.petugas = M.petugas; S.kategori = M.kategori;
   } catch (e) { toast('Gagal memuat data: ' + e, true); }
-  fillUnitSelects();
-  try { S.shifts = await gs('getShifts'); S.petugas = await gs('getPetugas'); S.kategori = await gs('getKategoriLimbah'); } catch (e) { }
-  fillShiftSelects(); fillLimbahSelects();
+  fillUnitSelects(); fillShiftSelects(); fillLimbahSelects();
   document.getElementById('cTanggal').value = todayStr();
   document.getElementById('tTanggal').value = todayStr();
   var now = new Date();
@@ -997,13 +1005,19 @@ async function loadDashboard() {
       statCard('Temuan Aktif', d.temuanTerbuka, d.temuanTerbuka > 0 ? 'danger' : 'ok');
     document.querySelectorAll('#statCards .value').forEach(countUp);
     var sc = document.getElementById('shiftCards');
-    if (!d.shiftPerf || !d.shiftPerf.length) { sc.innerHTML = '<div class="empty" style="grid-column:1/-1">Belum ada data ceklis pada periode ini.</div>'; }
+    if (!d.shiftCapaian || !d.shiftCapaian.length) { sc.innerHTML = '<div class="empty" style="grid-column:1/-1">Belum ada data shift.</div>'; }
     else {
-      sc.innerHTML = d.shiftPerf.map(function (s) {
-        var cls = s.persen >= 80 ? 'ok' : (s.persen >= 60 ? 'warn' : 'danger');
-        return '<div class="stat ' + cls + '"><div class="label">Shift ' + esc(s.shift) + '</div><div class="value" data-value="' + s.persen + '" data-suffix="%">0%</div><div style="font-size:11.5px;color:#64748b;margin-top:6px">' + s.sesi + ' sesi ceklis · ' + s.total + ' item diperiksa</div></div>';
+      sc.innerHTML = d.shiftCapaian.map(function (s) {
+        var cls = s.persen >= 100 ? 'ok' : (s.persen >= 50 ? 'warn' : 'danger');
+        var belumHtml = (s.belum && s.belum.length)
+          ? '<div style="font-size:11.5px;color:#b91c1c;margin-top:6px;font-weight:700">Belum ceklis (' + s.belum.length + ' unit):</div>' + s.belum.map(function (u) { return '<span class="chip-mini">' + esc(u) + '</span>'; }).join('')
+          : '<div style="font-size:11.5px;color:#0f766e;margin-top:6px;font-weight:700">Semua unit selesai diceklis</div>';
+        return '<div class="stat ' + cls + '" style="text-align:left"><div class="label">Shift ' + esc(s.shift) + '</div>' +
+          '<div class="prog-wrap"><div class="prog-bar" style="width:' + s.persen + '%"></div></div>' +
+          '<div style="font-size:13px;font-weight:700;color:#0f766e">' + s.checked + ' / ' + s.total + ' unit selesai · ' + s.persen + '%</div>' +
+          belumHtml +
+          '<div style="font-size:11px;color:#64748b;margin-top:6px">' + s.sesi + ' sesi · ' + s.itemTotal + ' item · kepatuhan ' + s.kepatuhan + '%</div></div>';
       }).join('');
-      document.querySelectorAll('#shiftCards .value').forEach(countUp);
     }
     renderCharts(d);
     renderLimbahChart(d);
@@ -1015,6 +1029,15 @@ async function loadDashboard() {
           var cls = t.status === 'Selesai' ? 'b-selesai' : (t.status === 'Dalam Perbaikan' ? 'b-perbaikan' : 'b-terbuka');
           return '<tr><td>' + t.tanggal + '</td><td>' + (t.unit || '-') + '</td><td>' + esc(t.judul) + '</td><td><span class="badge ' + cls + '">' + t.status + '</span></td></tr>';
         }).join('') + '</tbody></table>';
+    }
+    var tsb = document.getElementById('tidakSesuaiBox');
+    if (!d.tidakSesuai || !d.tidakSesuai.length) { tsb.innerHTML = '<div class="empty">Semua item sesuai pada periode ini. Bagus!</div>'; tsb.className = ''; }
+    else {
+      tsb.className = '';
+      tsb.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Unit</th><th>Shift</th><th>Petugas</th><th>Item Tidak Sesuai</th><th>Keterangan</th></tr></thead><tbody>' +
+        d.tidakSesuai.map(function (r) {
+          return '<tr><td>' + r.tanggal + '</td><td>' + esc(r.nama_unit || '-') + '</td><td>' + esc(r.shift || '-') + '</td><td>' + esc(r.petugas_shift || r.pelaksana_nama || '-') + '</td><td>' + esc(r.item) + '</td><td>' + esc(r.keterangan || '-') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
     }
   } catch (e) { el.innerHTML = '<div class="empty">Gagal: ' + esc(e) + '</div>'; }
 }
@@ -1094,8 +1117,11 @@ async function simpanCeklis() {
   var unit_id = document.getElementById('cUnit').value;
   var tanggal = document.getElementById('cTanggal').value;
   var shift = document.getElementById('cShift').value;
+  var petugas = document.getElementById('cPetugas').value;
   if (!unit_id) return toast('Pilih unit terlebih dahulu.', true);
   if (!tanggal) return toast('Pilih tanggal.', true);
+  if (!shift) return toast('Pilih shift.', true);
+  if (!petugas) return toast('Pilih petugas shift (wajib untuk mencegah ceklis ganda).', true);
   var items = [];
   var belum = 0;
   document.querySelectorAll('.cek-item').forEach(function (el) {
@@ -1108,7 +1134,9 @@ async function simpanCeklis() {
   var btn = document.getElementById('btnSimpanCeklis');
   btn.disabled = true; btn.textContent = 'Menyimpan…';
   try {
-    await gs('saveCeklis', { unit_id: unit_id, tanggal: tanggal, shift: shift, petugas_shift: document.getElementById('cPetugas').value, items: items });
+    var ganda = await gs('cekCeklisGanda', unit_id, tanggal, shift, petugas);
+    if (ganda.exists) { btn.disabled = false; btn.textContent = 'Simpan Ceklis'; return toast('Ceklis ganda: ' + (ganda.nama_unit || unit_id) + ' · ' + tanggal + ' · shift ' + shift + ' · petugas ' + ganda.petugas + ' sudah diisi (' + ganda.count + ' item). Satu petugas hanya boleh mengisi ceklis satu kali per unit per shift per hari.', true); }
+    await gs('saveCeklis', { unit_id: unit_id, tanggal: tanggal, shift: shift, petugas_shift: petugas, items: items });
     toast('Ceklis berhasil disimpan.');
     document.querySelectorAll('.cek-item').forEach(function (el) {
       el.querySelectorAll('.opt').forEach(function (o) { o.classList.remove('active'); });
@@ -1196,6 +1224,21 @@ function renderChips() {
 
 function pilihStatus(st) { S.temuanStatus = st; renderChips(); renderFiltered(); }
 
+// Label durasi penanganan temuan: Terbuka -> Dalam Perbaikan -> Selesai (dalam hari)
+function durasiLabel(t) {
+  var parts = [];
+  var add = function (label, n, jalan) {
+    if (n === null || n === undefined || isNaN(n)) return;
+    var warn = jalan ? ' <span style="color:' + (t.status === 'Terbuka' ? '#ef4444' : '#f59e0b') + ';font-weight:700">(berjalan)</span>' : '';
+    parts.push('<b>' + label + ':</b> ' + n + ' hari' + warn);
+  };
+  if (t.status === 'Terbuka') add('Terbuka', t.dur_terbuka, true);
+  else { add('Terbuka', t.dur_terbuka, false); add('Dalam Perbaikan', t.dur_proses, t.status === 'Dalam Perbaikan'); }
+  add('Total', t.dur_total, false);
+  if (!parts.length) return '<span style="color:#94a3b8">Durasi belum tercatat</span>';
+  return '<span style="color:#0f766e;font-weight:700">Durasi penanganan:</span> ' + parts.join(' · ');
+}
+
 function renderFiltered() {
   var el = document.getElementById('daftarTemuan');
   var unit_id = document.getElementById('fUnit').value;
@@ -1233,6 +1276,7 @@ function renderFiltered() {
       '<span>⚑ ' + esc(t.kategori || '-') + '</span>' +
       '<span>◉ ' + esc(t.pelapor_nama || '-') + '</span>' +
       '</div>' +
+      '<div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.7">' + durasiLabel(t) + '</div>' +
       '<div class="temuan-desc">' + esc(t.deskripsi) + '</div>' +
       (photos ? '<div class="temuan-photos">' + photos + '</div>' : '') +
       tlLine + mgmtBox + '</div>';
@@ -1280,7 +1324,21 @@ function renderUnitTable() {
 }
 
 /* ---------- Template Ceklis ---------- */
-function batalTemplate() { document.getElementById('tpId').value = ''; document.getElementById('tpItem').value = ''; document.getElementById('tpStandar').value = ''; }
+function batalTemplate() { document.getElementById('tpId').value = ''; document.getElementById('tpItem').value = ''; document.getElementById('tpStandar').value = ''; document.getElementById('formTplTitle').textContent = 'Tambah Item'; }
+function editTemplate(id) {
+  var t = S.tpl.filter(function (x) { return x.item_id === id; })[0];
+  if (!t) return;
+  var sel = document.getElementById('tpKategori');
+  var ada = [].some.call(sel.options, function (o) { return o.value === t.kategori; });
+  if (!ada) { var o = document.createElement('option'); o.value = t.kategori; o.textContent = t.kategori; sel.appendChild(o); }
+  sel.value = t.kategori;
+  document.getElementById('tpId').value = t.item_id;
+  document.getElementById('tpItem').value = t.item;
+  document.getElementById('tpStandar').value = t.standar || '';
+  document.getElementById('formTplTitle').textContent = 'Edit Item';
+  document.getElementById('tpItem').focus();
+  window.scrollTo({ top: document.getElementById('view-template').offsetTop - 70, behavior: 'smooth' });
+}
 async function simpanTemplate() {
   var item = document.getElementById('tpItem').value.trim();
   if (!item) return toast('Item wajib diisi.', true);
@@ -1296,7 +1354,7 @@ async function hapusTemplate(id) {
 }
 function renderTemplateTable() {
   document.querySelector('#tabelTemplate tbody').innerHTML = S.tpl.map(function (t) {
-    return '<tr><td>' + esc(t.kategori) + '</td><td>' + esc(t.item) + '</td><td>' + esc(t.standar || '-') + '</td><td><button class="btn sm danger" onclick="hapusTemplate(\'' + t.item_id + '\')">Hapus</button></td></tr>';
+    return '<tr><td>' + esc(t.kategori) + '</td><td>' + esc(t.item) + '</td><td>' + esc(t.standar || '-') + '</td><td><button class="btn sm secondary" onclick="editTemplate(\'' + t.item_id + '\')">Edit</button> <button class="btn sm danger" onclick="hapusTemplate(\'' + t.item_id + '\')">Hapus</button></td></tr>';
   }).join('');
 }
 
@@ -1307,7 +1365,7 @@ async function simpanPengguna() {
   if (!email || !nama) return toast('Email & nama wajib diisi.', true);
   try {
     await gs('savePengguna', { email: email, nama: nama, role: document.getElementById('pgRole').value, unit_id: document.getElementById('pgUnit').value });
-    toast('Pengguna disimpan.'); document.getElementById('pgEmail').value = ''; document.getElementById('pgNama').value = ''; renderPenggunaTable();
+    toast('Pengguna disimpan.'); batalPengguna(); renderPenggunaTable();
   } catch (e) { toast('Gagal: ' + e, true); }
 }
 async function hapusPengguna(email) {
@@ -1328,11 +1386,33 @@ function statusAktif(iso) {
 async function renderPenggunaTable() {
   try {
     var list = await gs('getPengguna');
+    S.penggunaList = list;
     var unitName = function (id) { var u = S.units.filter(function (x) { return x.unit_id === id; })[0]; return u ? u.nama_unit : '-'; };
     document.querySelector('#tabelPengguna tbody').innerHTML = list.map(function (p) {
-      return '<tr><td>' + esc(p.email) + '</td><td>' + esc(p.nama) + '</td><td><span class="badge ' + (p.role === 'Managemen' ? 'b-selesai' : 'b-perbaikan') + '">' + p.role + '</span></td><td>' + esc(unitName(p.unit_id)) + '</td><td>' + statusAktif(p.last_active) + '</td><td><button class="btn sm secondary" onclick="setPasswordPengguna(\'' + esc(p.email) + '\')">Set PW</button> <button class="btn sm danger" onclick="hapusPengguna(\'' + esc(p.email) + '\')">Hapus</button></td></tr>';
+      return '<tr><td>' + esc(p.email) + '</td><td>' + esc(p.nama) + '</td><td><span class="badge ' + (p.role === 'Managemen' ? 'b-selesai' : 'b-perbaikan') + '">' + p.role + '</span></td><td>' + esc(unitName(p.unit_id)) + '</td><td>' + statusAktif(p.last_active) + '</td><td><button class="btn sm" onclick="editPengguna(\'' + esc(p.email) + '\')">Edit</button> <button class="btn sm secondary" onclick="setPasswordPengguna(\'' + esc(p.email) + '\')">Set PW</button> <button class="btn sm danger" onclick="hapusPengguna(\'' + esc(p.email) + '\')">Hapus</button></td></tr>';
     }).join('');
   } catch (e) { document.querySelector('#tabelPengguna tbody').innerHTML = '<tr><td colspan="6" class="empty">Gagal: ' + esc(e) + '</td></tr>'; }
+}
+function editPengguna(email) {
+  var p = (S.penggunaList || []).filter(function (x) { return x.email === email; })[0];
+  if (!p) return toast('Data pengguna tidak ditemukan.', true);
+  document.getElementById('pgEmail').value = p.email;
+  document.getElementById('pgEmail').readOnly = true;
+  document.getElementById('pgNama').value = p.nama || '';
+  document.getElementById('pgRole').value = (p.role === 'Managemen' || /^mana/i.test(p.role || '')) ? 'Managemen' : 'Pelaksana';
+  document.getElementById('pgUnit').value = p.unit_id || '';
+  document.getElementById('btnSimpanPengguna').textContent = 'Perbarui Pengguna';
+  document.getElementById('btnBatalPengguna').style.display = '';
+  window.scrollTo({ top: document.getElementById('view-pengguna').offsetTop - 70, behavior: 'smooth' });
+}
+function batalPengguna() {
+  document.getElementById('pgEmail').readOnly = false;
+  document.getElementById('pgEmail').value = '';
+  document.getElementById('pgNama').value = '';
+  document.getElementById('pgRole').value = 'Pelaksana';
+  document.getElementById('pgUnit').value = '';
+  document.getElementById('btnSimpanPengguna').textContent = 'Simpan Pengguna';
+  document.getElementById('btnBatalPengguna').style.display = 'none';
 }
 
 /* ---------- Rekap & Export ---------- */
@@ -1586,11 +1666,22 @@ function renderLimbahTable() {
     return '<tr><td>' + l.tanggal + '</td><td>' + esc(l.nama_unit || '-') + '</td><td>' + esc(l.kategori || '-') + '</td><td><b>' + l.jumlah + ' ' + esc(l.satuan) + '</b></td><td>' + esc(l.keterangan || '-') + '</td><td>' + esc(l.pencatat || '-') + '</td><td>' + aksi + '</td></tr>';
   }).join('') : '<tr><td colspan="7" class="empty">Belum ada pencatatan.</td></tr>';
 }
-async function simpanKategori() { var n = document.getElementById('kNama').value.trim(); if (!n) return toast('Nama kategori wajib.', true); try { await gs('saveKategoriLimbah', { nama_kategori: n, satuan: document.getElementById('kSatuan').value }); toast('Kategori disimpan.'); document.getElementById('kNama').value = ''; S.kategori = await gs('getKategoriLimbah'); fillLimbahSelects(); renderKategoriTable(); } catch (e) { toast('Gagal: ' + e, true); } }
-async function hapusKategori(id) { if (!confirm('Hapus kategori ini?')) return; try { await gs('deleteKategoriLimbah', id); toast('Dihapus.'); S.kategori = await gs('getKategoriLimbah'); fillLimbahSelects(); renderKategoriTable(); } catch (e) { toast('Gagal: ' + e, true); } }
+async function simpanKategori() { var n = document.getElementById('kNama').value.trim(); if (!n) return toast('Nama kategori wajib.', true); try { await gs('saveKategoriLimbah', { kategori_id: document.getElementById('kId').value || null, nama_kategori: n, satuan: document.getElementById('kSatuan').value }); toast('Kategori disimpan.'); batalKategori(); S.kategori = await gs('getKategoriLimbah'); fillLimbahSelects(); renderKategoriTable(); } catch (e) { toast('Gagal: ' + e, true); } }
+function batalKategori() { document.getElementById('kId').value = ''; document.getElementById('kNama').value = ''; document.getElementById('kSatuan').value = 'kg'; document.getElementById('btnSimpanKategori').textContent = 'Simpan Kategori'; document.getElementById('btnBatalKategori').style.display = 'none'; }
+function editKategori(id) {
+  var k = S.kategori.filter(function (x) { return x.kategori_id === id; })[0];
+  if (!k) return;
+  document.getElementById('kId').value = k.kategori_id;
+  document.getElementById('kNama').value = k.nama_kategori;
+  document.getElementById('kSatuan').value = k.satuan || 'kg';
+  document.getElementById('btnSimpanKategori').textContent = 'Perbarui Kategori';
+  document.getElementById('btnBatalKategori').style.display = '';
+  document.getElementById('kNama').focus();
+}
+async function hapusKategori(id) { if (!confirm('Hapus kategori ini?')) return; try { await gs('deleteKategoriLimbah', id); toast('Dihapus.'); batalKategori(); S.kategori = await gs('getKategoriLimbah'); fillLimbahSelects(); renderKategoriTable(); } catch (e) { toast('Gagal: ' + e, true); } }
 function renderKategoriTable() {
   document.querySelector('#tabelKategori tbody').innerHTML = S.kategori.map(function (k) {
-    return '<tr><td>' + esc(k.nama_kategori) + '</td><td>' + esc(k.satuan) + '</td><td><button class="btn sm danger" onclick="hapusKategori(\'' + k.kategori_id + '\')">Hapus</button></td></tr>';
+    return '<tr><td>' + esc(k.nama_kategori) + '</td><td>' + esc(k.satuan) + '</td><td><button class="btn sm secondary" onclick="editKategori(\'' + k.kategori_id + '\')">Edit</button> <button class="btn sm danger" onclick="hapusKategori(\'' + k.kategori_id + '\')">Hapus</button></td></tr>';
   }).join('');
 }
 function renderLimbahChart(d) {
