@@ -7,7 +7,7 @@
  *    disinkronkan otomatis saat online.
  *  Naikkan versi CACHE setiap kali ada update file statis.
  * ============================================================ */
-var CACHE = 'sibersih-v1';
+var CACHE = 'sibersih-v2';
 var CORE = [
   './',
   './index.html',
